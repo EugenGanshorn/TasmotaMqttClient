@@ -26,7 +26,6 @@ class Request
 {
     private phpMQTT $client;
     private Topic $topic;
-    private bool $messageReceived = false;
 
     /**
      * @throws UnknownCommandException
@@ -40,10 +39,6 @@ class Request
         $status = [];
         $status = array_merge($status, $this->callMethod('Status'));
         for ($i = 1; $i < 12; ++$i) {
-            if ($i === 9) {
-                continue;
-            }
-
             $status = array_merge($status, $this->callMethod('Status', [$i]));
         }
 
@@ -55,9 +50,6 @@ class Request
         return $status;
     }
 
-    /**
-     * @throws UnknownCommandException
-     */
     public function send(string $publishTopic, string $subscribeTopic, $payload = null, Closure $callback = null): array
     {
         if (is_bool($payload)) {
@@ -67,35 +59,33 @@ class Request
         $payload = (string) $payload;
 
         $this->client->publish($publishTopic, $payload ?? '');
-        $this->messageReceived = false;
-        if ($callback === null) {
-            $response = $this->client->subscribeAndWaitForMessage($subscribeTopic, 0);
 
-            return $this->handleResponse($response);
-        } else {
-            $this->messageReceived = false;
+        $response = null;
+        $stop = false;
+        $topics = [];
+        $topics[$subscribeTopic]  = [
+            'qos' => 0,
+            'function' => function (string $topic, $message) use ($callback, &$stop, &$response) {
+                $response = $this->handleResponse($message);
 
-            $topics = [];
-            $topics[$subscribeTopic]  = [
-                'qos' => 0,
-                'function' => function (string $topic, $response) use ($callback) {
-                    $result = $this->handleResponse($response);
-                    $callback($result);
-                    $this->messageReceived = true;
+                if (is_callable($callback)) {
+                    $callback($response);
                 }
-            ];
 
-            $this->client->subscribe($topics);
-
-            $i = 0;
-            while (!$this->messageReceived && $this->client->proc()) {
-                if (++$i % 100 === 0) {
-                    $this->client->ping();
-                }
+                $stop = true;
             }
+        ];
 
-            return [];
+        $this->client->subscribe($topics);
+
+        $stopAt = microtime(true) + 5;
+        while ($this->client->proc() && !$stop && $stopAt > microtime(true));
+
+        if ($callback === null && $response !== null) {
+            return $response;
         }
+
+        return [];
     }
 
     /**

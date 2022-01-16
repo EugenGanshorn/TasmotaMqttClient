@@ -33,7 +33,7 @@ class Request
      */
     public function Status(?int $value = null, Closure $callback = null): array
     {
-        if ($value !== null) {
+        if ($value !== null && $value !== 0) {
             return $this->callMethod('Status', [$value, $callback]);
         }
 

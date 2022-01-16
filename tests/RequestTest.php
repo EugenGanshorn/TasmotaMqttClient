@@ -1,8 +1,8 @@
 <?php
 
 use Bluerhinos\phpMQTT;
-use TasmotaHttpClient\Request;
-use TasmotaHttpClient\UnknownCommandException;
+use TasmotaMqttClient\Request;
+use TasmotaMqttClient\UnknownCommandException;
 
 class RequestTest extends PHPUnit\Framework\TestCase
 {

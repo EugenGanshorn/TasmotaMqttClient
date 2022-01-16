@@ -1,6 +1,6 @@
 <?php
 
-namespace TasmotaHttpClient;
+namespace TasmotaMqttClient;
 
 class Topic
 {

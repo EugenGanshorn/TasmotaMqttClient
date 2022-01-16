@@ -1,6 +1,6 @@
 <?php
 
-use TasmotaHttpClient\Topic;
+use TasmotaMqttClient\Topic;
 
 class TopicTest extends PHPUnit\Framework\TestCase
 {

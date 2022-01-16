@@ -1,8 +1,8 @@
 <?php
 
 use Bluerhinos\phpMQTT;
-use TasmotaHttpClient\Request;
-use TasmotaHttpClient\Topic;
+use TasmotaMqttClient\Request;
+use TasmotaMqttClient\Topic;
 
 require_once 'vendor/autoload.php';
 

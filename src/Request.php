@@ -61,25 +61,22 @@ class Request
         $this->client->publish($publishTopic, $payload ?? '');
 
         $response = null;
-        $stop = false;
         $topics = [];
         $topics[$subscribeTopic]  = [
             'qos' => 0,
-            'function' => function (string $topic, $message) use ($callback, &$stop, &$response) {
+            'function' => function (string $topic, $message) use ($callback, &$response) {
                 $response = $this->handleResponse($message);
 
                 if (is_callable($callback)) {
                     $callback($response);
                 }
-
-                $stop = true;
             }
         ];
 
         $this->client->subscribe($topics);
 
         $stopAt = microtime(true) + 5;
-        while ($this->client->proc() && !$stop && $stopAt > microtime(true));
+        while ($this->client->proc() && $response === null && $stopAt > microtime(true));
 
         if ($callback === null && $response !== null) {
             return $response;

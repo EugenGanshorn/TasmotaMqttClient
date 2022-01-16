@@ -48,7 +48,8 @@ class Request
         }
 
         if ($callback) {
-            return $callback($status);
+            $callback($status);
+            return [];
         }
 
         return $status;

@@ -1,0 +1,24 @@
+{
+    "name": "eugenganshorn/tasmota-mqtt-client",
+    "type": "library",
+    "license": "Apache-2.0",
+    "authors": [
+        {
+            "name": "Eugen Ganshorn",
+            "email": "eugen@ganshorn.eu"
+        }
+    ],
+    "require": {
+        "php": "^7.3|^8.0",
+        "bluerhinos/phpmqtt": "@dev"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5",
+        "friendsofphp/php-cs-fixer": "^3.5"
+    },
+    "autoload": {
+        "classmap": [
+            "src/"
+        ]
+    }
+}

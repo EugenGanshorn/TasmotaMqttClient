@@ -8,19 +8,18 @@ use Closure;
 /**
  * @method array Latitude(?string $value = null, Closure $callback = null)
  * @method array Longitude(?string $value = null, Closure $callback = null)
- * @method array Status(?integer $value = null, Closure $callback = null)
- * @method array Power(?integer $value = null, Closure $callback = null)
+ * @method array Power(?int $value = null, Closure $callback = null)
  * @method array Color(?string $value = null, Closure $callback = null)
  * @method array Color2(?string $value = null, Closure $callback = null)
  * @method array CT(?int $value = null, Closure $callback = null)
- * @method array Dimmer(?integer $value = null, Closure $callback = null)
+ * @method array Dimmer(?int $value = null, Closure $callback = null)
  * @method array Fade(?bool $value = null, Closure $callback = null)
- * @method array Speed(?integer $value = null, Closure $callback = null)
- * @method array Scheme(?integer $value = null, Closure $callback = null)
+ * @method array Speed(?int $value = null, Closure $callback = null)
+ * @method array Scheme(?int $value = null, Closure $callback = null)
  * @method array LedTable(?bool $value = null, Closure $callback = null)
- * @method array Wakeup(?integer $value = null, Closure $callback = null)
- * @method array WakeupDuration(?integer $value = null, Closure $callback = null)
- * @method array Upgrade(?integer $value = null, Closure $callback = null)
+ * @method array Wakeup(?int $value = null, Closure $callback = null)
+ * @method array WakeupDuration(?int $value = null, Closure $callback = null)
+ * @method array Upgrade(?int $value = null, Closure $callback = null)
  * @method array OtaUrl(?string $value = null, Closure $callback = null)
  */
 class Request
@@ -28,6 +27,32 @@ class Request
     private phpMQTT $client;
     private Topic $topic;
     private bool $messageReceived = false;
+
+    /**
+     * @throws UnknownCommandException
+     */
+    public function Status(?int $value = null, Closure $callback = null): array
+    {
+        if ($value !== null) {
+            return $this->callMethod('Status', [$value, $callback]);
+        }
+
+        $status = [];
+        $status = array_merge($status, $this->callMethod('Status'));
+        for ($i = 1; $i < 12; ++$i) {
+            if ($i === 9) {
+                continue;
+            }
+
+            $status = array_merge($status, $this->callMethod('Status', [$i]));
+        }
+
+        if ($callback) {
+            return $callback($status);
+        }
+
+        return $status;
+    }
 
     /**
      * @throws UnknownCommandException
@@ -75,21 +100,9 @@ class Request
     /**
      * @throws UnknownCommandException
      */
-    public function __call(string $topic, array $arguments): array
+    public function __call(string $topic, array $arguments = []): array
     {
-        $subscribeTopic = 'RESULT';
-        switch ($topic) {
-            case 'Status':
-                $subscribeTopic = 'STATUS';
-                break;
-        }
-
-        return $this->send(
-            $this->topic->build($topic),
-            $this->topic->build($subscribeTopic),
-            array_shift($arguments),
-            array_shift($arguments)
-        );
+        return $this->callMethod($topic, $arguments);
     }
 
     public function getClient(): phpMQTT
@@ -120,6 +133,27 @@ class Request
         return $this;
     }
 
+    /**
+     * @throws UnknownCommandException
+     */
+    protected function callMethod(string $topic, array $arguments = []): array
+    {
+        $subscribeTopic = 'RESULT';
+        switch ($topic) {
+            case 'Status':
+                $payload = array_shift($arguments);
+                $subscribeTopic = 'STATUS' . $payload;
+                array_unshift($arguments, $payload);
+                break;
+        }
+
+        return $this->send(
+            $this->topic->build($topic),
+            $this->topic->build($subscribeTopic),
+            array_shift($arguments),
+            array_shift($arguments)
+        );
+    }
 
     /**
      * @throws UnknownCommandException

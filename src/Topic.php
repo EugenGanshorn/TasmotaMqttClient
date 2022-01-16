@@ -9,7 +9,7 @@ class Topic
     public function build(?string $command = null): string
     {
         $prefix = 'cmnd';
-        switch ($command) {
+        switch (substr($command, 0, 6)) {
             case 'RESULT':
             case 'STATUS':
                 $prefix = 'stat';

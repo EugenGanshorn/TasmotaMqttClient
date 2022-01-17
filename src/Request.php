@@ -6,6 +6,7 @@ use Bluerhinos\phpMQTT;
 use Closure;
 
 /**
+ * @method array Status(?int $value = null, Closure $callback = null)
  * @method array Latitude(?string $value = null, Closure $callback = null)
  * @method array Longitude(?string $value = null, Closure $callback = null)
  * @method array Power(?int $value = null, Closure $callback = null)
@@ -28,29 +29,9 @@ class Request
     private Topic $topic;
 
     /**
-     * @throws UnknownCommandException
+     * @param string[] $subscribeTopics
      */
-    public function Status(?int $value = null, Closure $callback = null): array
-    {
-        if ($value !== null && $value !== 0) {
-            return $this->callMethod('Status', [$value, $callback]);
-        }
-
-        $status = [];
-        $status = array_merge($status, $this->callMethod('Status'));
-        for ($i = 1; $i < 12; ++$i) {
-            $status = array_merge($status, $this->callMethod('Status', [$i]));
-        }
-
-        if ($callback) {
-            $callback($status);
-            return [];
-        }
-
-        return $status;
-    }
-
-    public function send(string $publishTopic, string $subscribeTopic, $payload = null, Closure $callback = null): array
+    public function send(string $publishTopic, array $subscribeTopics, $payload = null, Closure $callback = null): array
     {
         if (is_bool($payload)) {
             $payload = (int) $payload;
@@ -58,36 +39,34 @@ class Request
 
         $payload = (string) $payload;
 
-        $this->client->publish($publishTopic, $payload ?? '');
-
-        $response = null;
+        $responses = [];
         $topics = [];
-        $topics[$subscribeTopic]  = [
-            'qos' => 0,
-            'function' => function (string $topic, $message) use ($callback, &$response) {
-                $response = $this->handleResponse($message);
-
-                if (is_callable($callback)) {
-                    $callback($response);
+        foreach ($subscribeTopics as $subscribeTopic) {
+            $topics[$subscribeTopic] = [
+                'qos' => 0,
+                'function' => function (string $topic, $message) use (&$responses) {
+                    var_dump($topic);
+                    $responses = array_merge($responses, $this->handleResponse($message));
                 }
-            }
-        ];
+            ];
+        }
 
         $this->client->subscribe($topics);
 
-        $stopAt = microtime(true) + 5;
-        while ($this->client->proc() && $response === null && $stopAt > microtime(true));
+        $this->client->publish($publishTopic, $payload ?? '');
 
-        if ($callback === null && $response !== null) {
-            return $response;
+        $stopAt = microtime(true) + 5;
+        while ($this->client->proc() && count($responses) !== count($subscribeTopics) && $stopAt > microtime(true));
+
+        if (is_callable($callback)) {
+            $callback($responses);
+        } else {
+            return $responses;
         }
 
         return [];
     }
 
-    /**
-     * @throws UnknownCommandException
-     */
     public function __call(string $topic, array $arguments = []): array
     {
         return $this->callMethod($topic, $arguments);
@@ -121,23 +100,35 @@ class Request
         return $this;
     }
 
-    /**
-     * @throws UnknownCommandException
-     */
     protected function callMethod(string $topic, array $arguments = []): array
     {
-        $subscribeTopic = 'RESULT';
+        $subscribeTopic = [
+            $this->topic->build('RESULT'),
+        ];
+
         switch ($topic) {
             case 'Status':
                 $payload = array_shift($arguments);
-                $subscribeTopic = 'STATUS' . $payload;
                 array_unshift($arguments, $payload);
+
+                $subscribeTopic = [
+                    $this->topic->build('STATUS'),
+                ];
+
+                if ($payload === 0) {
+                    for ($i = 1; $i < 12; ++$i) {
+                        $subscribeTopic[] = $this->topic->build('STATUS' . $i);
+                    }
+                } else {
+                    $subscribeTopic[] = $this->topic->build('STATUS' . $payload);
+                }
+
                 break;
         }
 
         return $this->send(
             $this->topic->build($topic),
-            $this->topic->build($subscribeTopic),
+            $subscribeTopic,
             array_shift($arguments),
             array_shift($arguments)
         );

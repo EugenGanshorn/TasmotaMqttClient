@@ -25,8 +25,15 @@ use Closure;
  */
 class Request
 {
-    private phpMQTT $client;
-    private Topic $topic;
+    private const DEFAULT_TIMEOUT = 10;
+
+    public function __construct(
+        private phpMQTT $client,
+        private Topic $topic,
+        private int $timeout = self::DEFAULT_TIMEOUT,
+    )
+    {
+    }
 
     /**
      * @param string[] $subscribeTopics
@@ -45,7 +52,6 @@ class Request
             $topics[$subscribeTopic] = [
                 'qos' => 0,
                 'function' => function (string $topic, $message) use (&$responses) {
-                    var_dump($topic);
                     $responses = array_merge($responses, $this->handleResponse($message));
                 }
             ];
@@ -55,7 +61,7 @@ class Request
 
         $this->client->publish($publishTopic, $payload ?? '');
 
-        $stopAt = microtime(true) + 5;
+        $stopAt = microtime(true) + $this->timeout;
         while ($this->client->proc() && count($responses) !== count($subscribeTopics) && $stopAt > microtime(true));
 
         if (is_callable($callback)) {
@@ -77,27 +83,9 @@ class Request
         return $this->client;
     }
 
-    /**
-     * @required
-     */
-    public function setClient(phpMQTT $client): self
-    {
-        $this->client = $client;
-        return $this;
-    }
-
     public function getTopic(): Topic
     {
         return $this->topic;
-    }
-
-    /**
-     * @required
-     */
-    public function setTopic(Topic $topic): self
-    {
-        $this->topic = $topic;
-        return $this;
     }
 
     protected function callMethod(string $topic, array $arguments = []): array
